@@ -28,6 +28,12 @@ function table.clone(orig)
 	return setmetatable(copy, getmetatable(orig))
 end
 
+function table.load(tbl, ldtbl)
+	for k, v in pairs(ldtbl) do
+		tbl[k] = v
+	end
+end
+
 -- Save copied tables in `copies`, indexed by original table.
 function table.copy(orig, copies)
     copies = copies or {}
@@ -110,6 +116,43 @@ function math.sign(x)
 	else return 1 end
 end
 
+--------------------------------------------------------utils---------------------------------------------------------------
+
+utils = {}
+
+function utils.clamp(val, min, max)
+	if max then
+		if val > max then 
+			return max
+		elseif val < min then 
+			return min
+		else
+			return val
+		end
+	else
+		-- here min is the max value
+		if val > min then 
+			return min
+		else
+			return val
+		end
+	end
+end
+
+function utils.cycle(val, offset, min, max)
+	if not max then
+		max = min
+		min = 1
+	end
+	val = val + offset
+	if val > max then 
+		return min
+	else
+		return val
+	end
+end
+
+
 -------------------------------------------------------class----------------------------------------------------------------
 
 class = { __type = "object"}
@@ -118,12 +161,12 @@ class.__index = class
 -- constructor with the name of the class
 function class:__call(...) -- this will call a function with just it's name
     local instance = setmetatable({}, self)
-    instance:new(...)
+    instance:__new(...)
     return instance
 end
 
 -- constructor new
-function class:new() end
+function class:__new() end
 
 -- create a new class for inheritance
 function class:derive(type)
@@ -131,7 +174,7 @@ function class:derive(type)
     subclass.__type = type
 	subclass.__index = subclass
 	subclass.__call = self.__call
-    subclass.super = self
+    subclass.__super = self
     setmetatable(subclass, self)
 	return subclass 
 end
@@ -144,9 +187,9 @@ end
 --------------------------------------------------------const---------------------------------------------------------------
 
 function const(consttable)
-    return setmetatable({__ = consttable}, {
+    return setmetatable({__const = consttable}, {
 		__index = function (tbl, key)
-					  return clone(tbl.__[key])
+					  return clone(tbl.__const[key])
 				  end,
     	__newindex = function(tbl, key, value)
                         error("Attempt to write the const "..key.." value of "..value)
@@ -156,34 +199,15 @@ function const(consttable)
 end
 
 ---------------------------------------------------------enum---------------------------------------------------------------
--- https://github.com/sulai/Lib-Pico8/blob/master/lang.lua
-function enum(names, offset)
-	offset = offset or 1
-	local objects = {}
-	local size = 0
-	for idr,name in pairs(names) do
-		local id = idr + offset - 1
-		local obj = {
-			id = id,       -- id
-			idr = idr,     -- 1-based relative id, without offset being added
-			name = name    -- name of the object
-		}
-		objects[name] = obj
-		objects[id] = obj
-		size = size + 1
+
+function enum(names)
+	local enumtable = {}
+	for i, name in ipairs(names) do
+		enumtable[i] = name
+		enumtable[name] = i
 	end
-	objects.idstart = offset        -- start of the id range being used
-	objects.idend = offset + size - 1   -- end of the id range being used
-	objects.size = size
-	objects.all = function()
-		local list = {}
-		for _,name in pairs(names) do
-			add(list,objects[name])
-		end
-		local i = 0
-		return function() i = i + 1 if i <= #list then return list[i] end end
-	end
-	return objects
+	return enumtable
 end
+--another possibility: https://github.com/sulai/Lib-Pico8/blob/master/lang.lua
 
 ----------------------------------------------------------------------------------------------------------------------------
